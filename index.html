@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Predictor Pro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6d28d9;
+            --secondary-color: #ec4899;
+            --success-color: #10b981;
+            --danger-color: #f43f5e;
+            --accent-color: #f59e0b;
+            --neutral-color: #6366f1;
+            --download-button-color: #e11d48; /* Added a download button color */
+            
+            /* Dynamic theme colors - will be updated via JS */
+            --theme-primary: var(--neutral-color);
+            --theme-secondary: #8b5cf6;
+            --theme-gradient-start: #c7d2fe;
+            --theme-gradient-middle: #a5b4fc;
+            --theme-gradient-end: #818cf8;
+        }
+
+        body {
+            padding: 30px;
+            background: linear-gradient(135deg, 
+                var(--theme-gradient-start), 
+                var(--theme-gradient-middle), 
+                var(--theme-gradient-end));
+            font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
+            transition: background 1.5s ease;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='rgba(255,255,255,.075)' fill-rule='evenodd'/%3E%3C/svg%3E");
+            z-index: -1;
+        }
+
+        /* Stock profit/loss background themes */
+        body.profit-background {
+            background: linear-gradient(135deg, 
+                rgb(5, 248, 13), /* lighter green */
+                rgb(0, 165, 52), /* medium green */
+                rgba(2, 255, 53, 0.4)); /* darker green - success-color with lower opacity */
+        }
+
+        body.loss-background {
+            background: linear-gradient(135deg, 
+                rgb(192, 2, 2), /* lighter red */
+                rgb(191, 0, 0), /* medium red */
+                rgb(196, 3, 3)); /* darker red - danger-color with lower opacity */
+        }
+
+        .stock-trend-icons {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .trend-icon {
+            position: absolute;
+            font-size: 2rem;
+            opacity: 0.3;
+            animation: float 15s linear infinite;
+            color: var(--theme-primary);
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.3; }
+            90% { opacity: 0.2; }
+            100% { transform: translateY(-100px) rotate(360deg); opacity: 0; }
+        }
+
+        .container {
+            max-width: 1500px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            background: linear-gradient(45deg, var(--theme-primary), var(--theme-secondary));
+            color: white;
+            border-bottom: none;
+        }
+
+        .stock-header {
+            background: linear-gradient(45deg, var(--theme-primary), var(--theme-secondary));
+            color: white;
+            padding: 25px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+        }
+
+        .stock-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shine 5s infinite;
+        }
+
+        @keyframes shine {
+            0% { left: -100%; }
+            20% { left: 100%; }
+            100% { left: 100%; }
+        }
+
+        .chart-container {
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(240, 240, 255, 0.85));
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            transition: all 0.5s ease;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+        }
+
+        .chart-container:hover {
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            transform: translateY(-5px);
+        }
+
+        .chart-container::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .chart-container:hover::after {
+            opacity: 1;
+        }
+
+        .positive { 
+            color: var(--success-color);
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+            font-weight: bold;
+        }
+        
+        .negative { 
+            color: var(--danger-color);
+            text-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+            font-weight: bold;
+        }
+
+        .form-control {
+            border-radius: 15px;
+            padding: 15px 20px;
+            border: 3px solid var(--theme-primary);
+            background: rgba(255, 255, 255, 0.9);
+            transition: all 0.4s ease;
+            font-size: 1.1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-control:focus {
+            border-color: var(--theme-secondary);
+            box-shadow: 0 0 0 0.3rem rgba(109, 40, 217, 0.3);
+            transform: scale(1.02);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary));
+            border: none;
+            border-radius: 15px;
+            padding: 15px 25px;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.5s ease;
+            box-shadow: 0 8px 20px rgba(109, 40, 217, 0.3);
+            z-index: 1;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: all 0.5s ease;
+            z-index: -1;
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+            transition: 0.7s ease;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--theme-secondary), var(--theme-primary));
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(109, 40, 217, 0.4);
+        }
+
+        .btn-outline-primary {
+            color: var(--theme-primary);
+            border-color: var(--theme-primary);
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--theme-primary);
+            border-color: var(--theme-primary);
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(109, 40, 217, 0.3);
+        }
+        
+        /* Custom download button style */
+        .btn-download {
+            color: white;
+            background-color: var(--download-button-color);
+            border-color: var(--download-button-color);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-download:hover {
+            background-color: #be123c;
+            border-color: #be123c;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(225, 29, 72, 0.3);
+            color: white;
+        }
+
+        .news-article {
+            transition: all 0.4s ease;
+            border-radius: 15px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            margin-bottom: 15px;
+            border-left: 5px solid var(--theme-primary);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .news-article:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translateX(10px);
+            box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid var(--theme-secondary);
+        }
+
+        .badge {
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            font-weight: 500;
+            background: var(--theme-primary);
+            color: white;
+            transition: all 0.4s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+
+        .badge:hover {
+            transform: scale(1.15) rotate(5deg);
+            box-shadow: 0 8px 20px rgba(109, 40, 217, 0.3);
+            background: var(--theme-secondary);
+        }
+
+        .img-fluid {
+            border-radius: 15px;
+            max-height: 450px;
+            object-fit: contain;
+            width: 100%;
+            transition: transform 0.5s ease;
+            border: 3px solid var(--theme-primary);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .img-fluid:hover {
+            transform: scale(1.05);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        h1, h2, h3, h4 {
+            color: #1f2937;
+            font-weight: 700;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            background: linear-gradient(to right, var(--theme-primary), var(--theme-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        h1::after {
+            content: '';
+            position: absolute;
+            width: 150px;
+            height: 5px;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(to right, var(--theme-primary), var(--theme-secondary));
+            border-radius: 10px;
+        }
+
+        .animate__animated {
+            animation-duration: 1.2s;
+        }
+
+        .animate__delay-1 {
+            animation-delay: 0.2s;
+        }
+
+        .animate__delay-2 {
+            animation-delay: 0.4s;
+        }
+
+        .animate__delay-3 {
+            animation-delay: 0.6s;
+        }
+
+        footer {
+            color: #1f2937;
+            font-size: 1rem;
+            font-weight: 500;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin-top: 40px;
+        }
+
+        /* New animations */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes float-y {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .float-animation {
+            animation: float-y 4s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .blink-animation {
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        /* Glow effect for positive/negative */
+        .glow-effect {
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        /* Loading animation */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+            transition: all 0.5s ease;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loader {
+            width: 100px;
+            height: 100px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--theme-primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Stock price ticker */
+        .ticker-container {
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            padding: 10px 0;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .ticker {
+            white-space: nowrap;
+            animation: ticker 30s linear infinite;
+            display: inline-block;
+        }
+        
+        .ticker-item {
+            display: inline-block;
+            padding: 0 20px;
+            font-weight: 600;
+        }
+        
+        @keyframes ticker {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* Notification animation */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(45deg, var(--theme-primary), var(--theme-secondary));
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transform: translateX(150%);
+            transition: transform 0.5s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        /* Stock status indicator */
+        .stock-status {
+            position: relative;
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-up {
+            background-color: var(--success-color);
+            box-shadow: 0 0 10px var(--success-color);
+        }
+
+        .status-down {
+            background-color: var(--danger-color);
+            box-shadow: 0 0 10px var(--danger-color);
+        }
+
+        .status-neutral {
+            background-color: var(--neutral-color);
+            box-shadow: 0 0 10px var(--neutral-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Dynamic background elements -->
+    <div class="stock-trend-icons" id="trendIcons"></div>
+    
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader"></div>
+    </div>
+    
+    <!-- Notification -->
+    <div class="notification" id="notification">Stock analysis complete!</div>
+
+    <div class="container">
+        <h1 class="text-center animate__animated animate__bounceInDown">Stock Price Predictor</h1>
+        
+        <!-- Stock Ticker Animation -->
+        <div class="ticker-container animate__animated animate__fadeIn animate__delay-1">
+            <div class="ticker">
+                <div class="ticker-item">AAPL $192.58 <span class="positive">+1.25%</span></div>
+                <div class="ticker-item">MSFT $425.96 <span class="positive">+0.62%</span></div>
+                <div class="ticker-item">GOOG $175.41 <span class="negative">-0.18%</span></div>
+                <div class="ticker-item">TSLA $172.63 <span class="positive">+2.34%</span></div>
+                <div class="ticker-item">AMZN $182.41 <span class="positive">+0.93%</span></div>
+                <div class="ticker-item">META $481.73 <span class="negative">-0.45%</span></div>
+                <div class="ticker-item">NVDA $881.86 <span class="positive">+1.76%</span></div>
+            </div>
+        </div>
+        
+        <div class="card mb-4 animate__animated animate__zoomIn animate__delay-1">
+            <div class="card-body">
+                <form method="POST" id="stockForm">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <input type="text" name="stock" class="form-control form-control-lg" 
+                                   placeholder="Enter stock symbol (e.g. AAPL, MSFT)" required
+                                   value="{{ stock_symbol if stock_symbol else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary btn-lg w-100 pulse">
+                                <i class="bi bi-search"></i> Analyze
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger animate__animated animate__shakeX">{{ error }}</div>
+        {% endif %}
+
+        {% if stock_symbol %}
+        <div class="stock-header animate__animated animate__fadeIn">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="stock-status {% if change >= 0 %}status-up{% else %}status-down{% endif %}"></div>
+                        <h2 class="mb-0 animate__animated animate__bounceIn">{{ stock_symbol }}</h2>
+                    </div>
+                    <p class="mb-0 opacity-75">Last updated: {{ last_date }}</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <h3 class="mb-0 animate__animated animate__pulse">${{ latest_close }}</h3>
+                    <p class="mb-0 {% if change >= 0 %}positive{% else %}negative{% endif %} glow-effect animate__animated {% if change >= 0 %}animate__tada{% else %}animate__wobble{% endif %}">
+                        {% if change >= 0 %}+{% endif %}{{ change|round(2) }} ({% if change >= 0 %}+{% endif %}{{ change_pct|round(2) }}%)
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="chart-container animate__animated animate__flipInX animate__delay-1 float-animation">
+                    <h4 class="animate__animated animate__fadeIn">Price and Moving Averages</h4>
+                    <img src="{{ ema_chart }}" class="img-fluid" alt="Price and EMA Chart">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container animate__animated animate__flipInX animate__delay-2 float-animation">
+                    <h4 class="animate__animated animate__fadeIn">Price Prediction</h4>
+                    <img src="{{ pred_chart }}" class="img-fluid" alt="Prediction Chart">
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4 animate__animated animate__bounceInUp animate__delay-2">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0 animate__animated animate__fadeIn">Statistics</h4>
+                {% if csv_path %}
+                    <a href="{{ url_for('download_file', filename=csv_path) }}" class="btn btn-download btn-sm animate__animated animate__pulse">
+                        <i class="bi bi-download"></i> Download CSV
+                    </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {{ data_desc|safe }}
+            </div>
+        </div>
+
+        <div class="card mt-4 animate__animated animate__bounceInUp animate__delay-3">
+            <div class="card-header">
+                <h4 class="mb-0 animate__animated animate__fadeIn">Latest News</h4>
+            </div>
+            <div class="card-body">
+                {% if news_list %}
+                    <div class="list-group">
+                        {% for article in news_list %}
+                            <a href="{{ article.url }}" class="list-group-item list-group-item-action news-article animate__animated animate__slideInRight" target="_blank">
+                                <h5 class="mb-1">{{ article.title }}</h5>
+                                <p class="mb-1">{{ article.description }}</p>
+                                <small>{{ article.publishedAt }}</small>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="animate__animated animate__fadeIn">No news available for this stock.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% else %}
+        <div class="card animate__animated animate__jackInTheBox animate__delay-1">
+            <div class="card-body text-center py-5">
+                <h3 class="animate__animated animate__fadeIn animate__delay-2">Welcome to Stock Predictor Pro</h3>
+                <p class="lead animate__animated animate__fadeIn animate__delay-2">Enter a stock symbol above to analyze and predict prices</p>
+                <div class="mt-5 mb-4">
+                    <p class="animate__animated animate__fadeIn animate__delay-3">Try these examples:</p>
+                    <div class="d-flex justify-content-center gap-4 flex-wrap">
+                        <span class="badge animate__animated animate__rotateIn animate__delay-3" onclick="fillStock('AAPL')">AAPL</span>
+                        <span class="badge animate__animated animate__rotateIn animate__delay-3" onclick="fillStock('MSFT')">MSFT</span>
+                        <span class="badge animate__animated animate__rotateIn animate__delay-3" onclick="fillStock('GOOG')">GOOG</span>
+                        <span class="badge animate__animated animate__rotateIn animate__delay-3" onclick="fillStock('TSLA')">TSLA</span>
+                        <span class="badge animate__animated animate__rotateIn animate__delay-3" onclick="fillStock('AMZN')">AMZN</span>
+                    </div>
+                </div>
+                
+                <div class="mt-5 animate__animated animate__fadeIn animate__delay-3">
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <h4>Real-time Analysis</h4>
+                                    <p>Get instant stock performance metrics and trends</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <h4>AI Predictions</h4>
+                                    <p>Advanced algorithms forecast future price movements</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="col-md-4">
+                                <div class="card h-100">
+                                    <div class="card-body text-center">
+                                        <h4>Latest News</h4>
+                                        <p>Stay informed with the most recent market news</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <footer class="text-center animate__animated animate__fadeIn animate__delay-3">
+                <p>&copy; 2025 Stock Predictor Pro. All rights reserved.</p>
+            </footer>
+        </div>
+    
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // Create floating trend icons
+            function createTrendIcons() {
+                const container = document.getElementById('trendIcons');
+                const icons = ['📈', '📉', '💹', '📊', '💰', '💲', '🔍', '📱', '💻', '🔔'];
+                const count = 30;
+                
+                for (let i = 0; i < count; i++) {
+                    const icon = document.createElement('div');
+                    icon.className = 'trend-icon';
+                    icon.textContent = icons[Math.floor(Math.random() * icons.length)];
+                    
+                    // Random position and size
+                    icon.style.left = `${Math.random() * 100}%`;
+                    icon.style.fontSize = `${Math.random() * 1.5 + 1}rem`;
+                    
+                    // Random animation duration
+                    const duration = Math.random() * 30 + 15;
+                    icon.style.animationDuration = `${duration}s`;
+                    
+                    // Random delay
+                    icon.style.animationDelay = `${Math.random() * 5}s`;
+                    
+                    container.appendChild(icon);
+                }
+            }
+            
+            // Function to fill stock input
+            function fillStock(symbol) {
+                document.querySelector('input[name="stock"]').value = symbol;
+                document.getElementById('stockForm').submit();
+            }
+            
+            // Function to show loading overlay
+            function showLoading() {
+                document.getElementById('loadingOverlay').classList.add('active');
+            }
+            
+            // Simulate notification
+            function showNotification() {
+                const notification = document.getElementById('notification');
+                notification.classList.add('show');
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+            
+            // Theme colors options
+            const themes = [
+                {
+                    primary: '#6d28d9', // purple
+                    secondary: '#8b5cf6',
+                    gradient: ['#c7d2fe', '#a5b4fc', '#818cf8']
+                },
+                {
+                    primary: '#0891b2', // cyan
+                    secondary: '#06b6d4',
+                    gradient: ['#cffafe', '#a5f3fc', '#67e8f9']
+                },
+                {
+                    primary: '#ea580c', // orange
+                    secondary: '#f97316',
+                    gradient: ['#ffedd5', '#fed7aa', '#fdba74']
+                },
+                {
+                    primary: '#059669', // green
+                    secondary: '#10b981',
+                    gradient: ['#d1fae5', '#a7f3d0', '#6ee7b7']
+                },
+                {
+                    primary: '#db2777', // pink
+                    secondary: '#ec4899',
+                    gradient: ['#fce7f3', '#fbcfe8', '#f9a8d4']
+                }
+            ];
+            
+            // Function to randomly select a theme
+            function selectRandomTheme() {
+                const theme = themes[Math.floor(Math.random() * themes.length)];
+                document.documentElement.style.setProperty('--theme-primary', theme.primary);
+                document.documentElement.style.setProperty('--theme-secondary', theme.secondary);
+                document.documentElement.style.setProperty('--theme-gradient-start', theme.gradient[0]);
+                document.documentElement.style.setProperty('--theme-gradient-middle', theme.gradient[1]);
+                document.documentElement.style.setProperty('--theme-gradient-end', theme.gradient[2]);
+            }
+            
+            // Set theme based on stock performance
+            function setPerformanceTheme() {
+                {% if stock_symbol and change is defined %}
+                    if ({{ change }} >= 0) {
+                        document.body.classList.add('profit-background');
+                        // Show notification for positive change
+                        document.getElementById('notification').textContent = "Stock is performing well! Up by {{ change|round(2) }}%";
+                    } else {
+                        document.body.classList.add('loss-background');
+                        // Show notification for negative change
+                        document.getElementById('notification').textContent = "Stock is down by {{ change|round(2) }}%";
+                    }
+                    
+                    setTimeout(() => {
+                        showNotification();
+                    }, 2000);
+                {% else %}
+                    selectRandomTheme();
+                {% endif %}
+            }
+            
+            // Add event listeners
+            document.addEventListener('DOMContentLoaded', function() {
+                createTrendIcons();
+                setPerformanceTheme();
+                
+                // Add loading effect on form submit
+                document.getElementById('stockForm').addEventListener('submit', showLoading);
+            });
+        </script>
+    </body>
+    </html>
