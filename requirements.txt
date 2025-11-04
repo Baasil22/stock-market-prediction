@@ -1,3 +1,5 @@
+flask
+gunicorn
 numpy
 pandas
 scikit-learn
@@ -6,3 +8,6 @@ yfinance
 tensorflow
 keras
 seaborn
+newsapi-python
+setuptools>=68
+wheel
