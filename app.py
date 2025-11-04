@@ -12,7 +12,7 @@ import warnings
 import time
 from pathlib import Path
 
-# FIX 1: Create cache directory for yfinance (MUST be before importing yfinance)
+# FIX 1: Create cache directory for yfinance
 CACHE_DIR = ".cache"
 Path(CACHE_DIR).mkdir(exist_ok=True)
 
@@ -20,31 +20,15 @@ Path(CACHE_DIR).mkdir(exist_ok=True)
 import yfinance as yf
 yf.set_tz_cache_location(CACHE_DIR)
 
-# FIX 3: Configure requests session with proper headers to avoid Yahoo blocking
-import requests
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+# FIX 3: Use curl_cffi instead of requests to bypass Yahoo's bot protection
+from curl_cffi import requests as curl_requests
 
-# Create session with retry logic and custom user agent
-session = requests.Session()
-session.headers.update({
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-})
+# Create session that mimics a real browser (CRITICAL FIX)
+session = curl_requests.Session(impersonate="chrome")
 
-# Add retry strategy for failed requests
-retry_strategy = Retry(
-    total=3,
-    backoff_factor=1,
-    status_forcelist=[429, 500, 502, 503, 504],
-)
-adapter = HTTPAdapter(max_retries=retry_strategy)
-session.mount("http://", adapter)
-session.mount("https://", adapter)
-
-# FIX 4: Use environment variables for API key (security)
 from newsapi import NewsApiClient
 
-# Get API key from environment variable (for production)
+# Get API key from environment variable
 NEWS_API_KEY = os.environ.get('NEWS_API_KEY', '1eb85be4251c4d8db6c1c3b7cac6fc9b')
 newsapi = NewsApiClient(api_key=NEWS_API_KEY)
 
@@ -52,8 +36,8 @@ newsapi = NewsApiClient(api_key=NEWS_API_KEY)
 warnings.filterwarnings('ignore')
 
 
-# Function to get stock-related news
 def get_stock_news(stock_symbol):
+    """Get stock-related news from NewsAPI"""
     try:
         articles = newsapi.get_everything(
             q=stock_symbol,
@@ -72,7 +56,7 @@ app = Flask(__name__)
 os.makedirs('static', exist_ok=True)
 
 
-# Load model with input shape verification
+# Load model
 try:
     model = load_model('stock_dl_model.h5', compile=False)
     print("Model loaded successfully. Input shape:", model.input_shape)
@@ -81,8 +65,8 @@ except Exception as e:
     print(f"Warning: Could not load model - {str(e)}")
 
 
-# Calculate RSI function
 def calculate_rsi(prices, periods=14):
+    """Calculate RSI indicator"""
     delta = prices.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=periods).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=periods).mean()
@@ -90,23 +74,28 @@ def calculate_rsi(prices, periods=14):
     return 100 - (100 / (1 + rs))
 
 
-# FIX 5: Function to download stock data with retry logic
 def download_stock_data(stock_symbol, retries=3):
-    """Download stock data with retry logic to handle temporary failures"""
+    """
+    Download stock data with curl_cffi session to bypass Yahoo's bot protection
+    This is the CRITICAL fix for the 'possibly delisted' error
+    """
     for attempt in range(retries):
         try:
-            # Use Ticker with custom session
-            ticker = yf.Ticker(stock_symbol)
+            print(f"Attempt {attempt + 1}: Fetching {stock_symbol}...")
+            
+            # Use yf.Ticker with curl_cffi session (mimics real browser)
+            ticker = yf.Ticker(stock_symbol, session=session)
+            
+            # Download historical data
             df = ticker.history(period="2y", auto_adjust=True)
             
             if not df.empty:
-                # Reset index to ensure proper date handling
-                df.reset_index(inplace=True)
-                df.set_index('Date', inplace=True)
+                print(f"Successfully fetched {len(df)} days of data for {stock_symbol}")
                 return df
             
             # If empty, wait and retry
             if attempt < retries - 1:
+                print(f"Empty data, retrying in 2 seconds...")
                 time.sleep(2)
                 
         except Exception as e:
@@ -134,12 +123,12 @@ def index():
             return render_template('index.html', error="Invalid stock symbol format", current_date=current_date)
         
         try:
-            # Download data with retry logic
+            # Download data with browser impersonation
             df = download_stock_data(stock)
             
             if df.empty:
                 return render_template('index.html', 
-                                     error=f"No data found for {stock}. Please verify the symbol and try again.", 
+                                     error=f"Unable to fetch data for {stock}. Please verify the symbol.", 
                                      current_date=current_date)
             
             # Calculate technical indicators
@@ -158,13 +147,13 @@ def index():
             
             if len(X) == 0:
                 return render_template('index.html', 
-                                     error=f"Not enough data to create sequences (need at least {lookback} days)", 
+                                     error=f"Not enough data (need at least {lookback} days)", 
                                      current_date=current_date)
             
             X = np.array(X)
             X = np.reshape(X, (X.shape[0], X.shape[1], 1))
             
-            # Make predictions if model is available
+            # Make predictions
             if model:
                 try:
                     predictions = model.predict(X, verbose=0)
@@ -177,7 +166,7 @@ def index():
             
             safe_symbol = ''.join(c for c in stock if c.isalnum())
             
-            # FIX 6: Clean up old files for this symbol
+            # Clean up old files
             try:
                 old_files = [f for f in os.listdir('static') if f.startswith(safe_symbol)]
                 for f in old_files:
@@ -188,7 +177,7 @@ def index():
             except:
                 pass
             
-            # Price and EMA chart
+            # Create EMA chart
             plt.figure(figsize=(12, 6))
             plt.plot(df.index, df['Close'], label='Close Price', linewidth=2)
             plt.plot(df.index, df['EMA_20'], label='20-day EMA', alpha=0.7, linewidth=1.5)
@@ -201,9 +190,9 @@ def index():
             plt.tight_layout()
             ema_path = f"static/{safe_symbol}_ema.png"
             plt.savefig(ema_path, dpi=100, bbox_inches='tight')
-            plt.close('all')  # FIX 7: Close all figures to prevent memory leak
+            plt.close('all')
             
-            # Prediction chart
+            # Create prediction chart
             plt.figure(figsize=(12, 6))
             plt.plot(df.index[lookback:], df['Close'][lookback:], label='Actual Price', linewidth=2)
             if model:
@@ -216,7 +205,7 @@ def index():
             plt.tight_layout()
             pred_path = f"static/{safe_symbol}_prediction.png"
             plt.savefig(pred_path, dpi=100, bbox_inches='tight')
-            plt.close('all')  # FIX 7: Close all figures to prevent memory leak
+            plt.close('all')
             
             # Calculate metrics
             latest_close = float(df['Close'].iloc[-1])
@@ -229,7 +218,7 @@ def index():
             csv_path = f"static/{csv_filename}"
             df.to_csv(csv_path)
             
-            # Fetch news with error handling
+            # Fetch news
             news_list = []
             try:
                 news_list = get_stock_news(stock)
@@ -253,7 +242,7 @@ def index():
             error_msg = f"Error processing {stock}: {str(e)}"
             print(error_msg)
             return render_template('index.html', 
-                                 error="Unable to fetch stock data. Please try again in a moment.", 
+                                 error="Unable to process request. Please try again.", 
                                  current_date=current_date)
     
     return render_template('index.html', current_date=current_date)
