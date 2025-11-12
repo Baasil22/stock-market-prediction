@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Predictor Pro</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
     <style>
@@ -699,31 +700,25 @@
     
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script>
-            // Create floating trend icons
-            function createTrendIcons() {
-                const container = document.getElementById('trendIcons');
-                const icons = ['📈', '📉', '💹', '📊', '💰', '💲', '🔍', '📱', '💻', '🔔'];
-                const count = 30;
-                
-                for (let i = 0; i < count; i++) {
-                    const icon = document.createElement('div');
-                    icon.className = 'trend-icon';
-                    icon.textContent = icons[Math.floor(Math.random() * icons.length)];
-                    
-                    // Random position and size
-                    icon.style.left = `${Math.random() * 100}%`;
-                    icon.style.fontSize = `${Math.random() * 1.5 + 1}rem`;
-                    
-                    // Random animation duration
-                    const duration = Math.random() * 30 + 15;
-                    icon.style.animationDuration = `${duration}s`;
-                    
-                    // Random delay
-                    icon.style.animationDelay = `${Math.random() * 5}s`;
-                    
-                    container.appendChild(icon);
-                }
-            }
+           <script>
+    // ✅ FIXED: Reduced icons from 30 to 15 for better performance
+    function createTrendIcons() {
+        const container = document.getElementById('trendIcons');
+        const icons = ['📈', '📉', '💹', '📊', '💰', '💲', '🔍', '📱', '💻', '🔔'];
+        const count = 15; // Changed from 30
+        
+        for (let i = 0; i < count; i++) {
+            const icon = document.createElement('div');
+            icon.className = 'trend-icon';
+            icon.textContent = icons[Math.floor(Math.random() * icons.length)];
+            icon.style.left = `${Math.random() * 100}%`;
+            icon.style.fontSize = `${Math.random() * 1.5 + 1}rem`;
+            const duration = Math.random() * 30 + 15;
+            icon.style.animationDuration = `${duration}s`;
+            icon.style.animationDelay = `${Math.random() * 5}s`;
+            container.appendChild(icon);
+        }
+    }
             
             // Function to fill stock input
             function fillStock(symbol) {

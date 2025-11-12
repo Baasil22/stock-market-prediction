@@ -12,32 +12,31 @@ import warnings
 import time
 from pathlib import Path
 
-# FIX 1: Create cache directory for yfinance
+# Create cache directory for yfinance
 CACHE_DIR = ".cache"
 Path(CACHE_DIR).mkdir(exist_ok=True)
 
-# FIX 2: Import yfinance and set cache location
+# Import yfinance and set cache location
 import yfinance as yf
 yf.set_tz_cache_location(CACHE_DIR)
 
-# FIX 3: Use curl_cffi instead of requests to bypass Yahoo's bot protection
-from curl_cffi import requests as curl_requests
-
-# Create session that mimics a real browser (CRITICAL FIX)
-session = curl_requests.Session(impersonate="chrome")
-
 from newsapi import NewsApiClient
 
-# Get API key from environment variable
-NEWS_API_KEY = os.environ.get('NEWS_API_KEY', '1eb85be4251c4d8db6c1c3b7cac6fc9b')
-newsapi = NewsApiClient(api_key=NEWS_API_KEY)
+# FIXED: Get API key from environment variable (NO DEFAULT VALUE FOR SECURITY)
+NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
+if NEWS_API_KEY:
+    newsapi = NewsApiClient(api_key=NEWS_API_KEY)
+else:
+    newsapi = None
+    print("Warning: NEWS_API_KEY not set. News feature will be disabled.")
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
 
-
 def get_stock_news(stock_symbol):
     """Get stock-related news from NewsAPI"""
+    if not newsapi:
+        return []
     try:
         articles = newsapi.get_everything(
             q=stock_symbol,
@@ -50,11 +49,9 @@ def get_stock_news(stock_symbol):
         print(f"Error fetching news: {e}")
         return []
 
-
 # Initialize Flask app
 app = Flask(__name__)
 os.makedirs('static', exist_ok=True)
-
 
 # Load model
 try:
@@ -64,7 +61,6 @@ except Exception as e:
     model = None
     print(f"Warning: Could not load model - {str(e)}")
 
-
 def calculate_rsi(prices, periods=14):
     """Calculate RSI indicator"""
     delta = prices.diff()
@@ -73,18 +69,16 @@ def calculate_rsi(prices, periods=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-
 def download_stock_data(stock_symbol, retries=3):
     """
-    Download stock data with curl_cffi session to bypass Yahoo's bot protection
-    This is the CRITICAL fix for the 'possibly delisted' error
+    FIXED: Download stock data with standard yfinance (removed curl_cffi)
     """
     for attempt in range(retries):
         try:
             print(f"Attempt {attempt + 1}: Fetching {stock_symbol}...")
             
-            # Use yf.Ticker with curl_cffi session (mimics real browser)
-            ticker = yf.Ticker(stock_symbol, session=session)
+            # Use standard yfinance
+            ticker = yf.Ticker(stock_symbol)
             
             # Download historical data
             df = ticker.history(period="2y", auto_adjust=True)
@@ -107,7 +101,6 @@ def download_stock_data(stock_symbol, retries=3):
     
     return pd.DataFrame()
 
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     current_date = dt.datetime.now().strftime('%Y-%m-%d')
@@ -123,7 +116,7 @@ def index():
             return render_template('index.html', error="Invalid stock symbol format", current_date=current_date)
         
         try:
-            # Download data with browser impersonation
+            # Download data
             df = download_stock_data(stock)
             
             if df.empty:
@@ -158,6 +151,12 @@ def index():
                 try:
                     predictions = model.predict(X, verbose=0)
                     predictions = scaler.inverse_transform(predictions)
+                    
+                    # FIXED: Clear session to free memory
+                    from keras import backend as K
+                    import gc
+                    K.clear_session()
+                    gc.collect()
                 except Exception as e:
                     print(f"Model prediction error: {str(e)}")
                     predictions = np.zeros((len(X), 1))
@@ -166,16 +165,16 @@ def index():
             
             safe_symbol = ''.join(c for c in stock if c.isalnum())
             
-            # Clean up old files
+            # Clean up old files with better error handling
             try:
                 old_files = [f for f in os.listdir('static') if f.startswith(safe_symbol)]
                 for f in old_files:
                     try:
                         os.remove(os.path.join('static', f))
-                    except:
-                        pass
-            except:
-                pass
+                    except Exception as e:
+                        print(f"Cleanup warning: {e}")
+            except Exception as e:
+                print(f"Cleanup warning: {e}")
             
             # Create EMA chart
             plt.figure(figsize=(12, 6))
@@ -247,7 +246,6 @@ def index():
     
     return render_template('index.html', current_date=current_date)
 
-
 @app.route('/download/<path:filename>')
 def download_file(filename):
     try:
@@ -255,6 +253,7 @@ def download_file(filename):
     except Exception as e:
         return f"Error downloading file: {str(e)}", 404
 
-
 if __name__ == '__main__':
-    app.run()
+    # CRITICAL FIX: Set host and port for Render deployment
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
